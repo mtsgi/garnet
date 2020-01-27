@@ -58,7 +58,8 @@ class GarnetSyntax < Garnet # tokenizer
     'if': :if,
     'then': :then,
     'else': :else,
-    'print': :print
+    'print': :print,
+    'input': :input
   }
 
   def self.sentences # 文列(block) = 文(文)*
@@ -90,6 +91,10 @@ class GarnetSyntax < Garnet # tokenizer
       puts "[print文]#{result}"
       return result
     end
+    if result = GarnetSyntax.input()
+      puts "[input文]#{result}"
+      return result
+    end
     if result = GarnetSyntax.assignment()
       puts "[代入文]#{result}"
       return result
@@ -97,7 +102,7 @@ class GarnetSyntax < Garnet # tokenizer
     return nil
   end
 
-  def self.print
+  def self.print # print文 = print 式
     token = get_token()
     if token == :print.to_s
       result = GarnetSyntax.expression()
@@ -114,7 +119,24 @@ class GarnetSyntax < Garnet # tokenizer
     end
   end
 
-  def self.assignment
+  def self.input # input文 = input 式
+    token = get_token()
+    if token == :input.to_s
+      result = GarnetSyntax.expression()
+      if get_token() == ';'
+        puts "インプット => #{result}"
+        return [:input, result]
+      else
+        unget_token()
+        return nil
+      end
+    else
+      unget_token()
+      return nil
+    end
+  end
+
+  def self.assignment # 代入文 = 変数 = 式
     token = get_token()
     puts "変数名トークン => #{token}"
     if token.is_a? String # 変数として正しい

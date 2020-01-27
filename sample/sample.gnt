@@ -1,4 +1,5 @@
 print 10;
 x = 10+6;
 print x;
-y = x+5;
+input y;
+print y;

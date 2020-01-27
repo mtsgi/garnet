@@ -1,8 +1,6 @@
-### Garnet 1.0
+# Garnet 1.0
 
-Narcissus
-
----
+![Garnet](logo.png)
 
 ```sh
 ruby garnet.rb sample/sample.gnt
