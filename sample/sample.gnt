@@ -1,5 +1,3 @@
-print 10;
-x = 10+6;
-print x;
+input x;
 input y;
-print y;
+print x*y;
