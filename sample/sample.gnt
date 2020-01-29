@@ -1,5 +1,5 @@
-print 10;
-x = 10+6;
-print x;
+print "xを入力してください";
+input x;
+print "yを入力してください";
 input y;
-print y;
+print "結果："+x*y;
