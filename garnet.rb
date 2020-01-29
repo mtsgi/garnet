@@ -26,10 +26,13 @@ class Garnet
 
   def self.get_token
     _keywords = GarnetSyntax::KW.keys.map{ |t|Regexp.escape(t) }
+    if ret = @@scanner.scan(/\A\s*"(.*?)[^\\]"|""/) # ""で囲まれた文字列
+      self.log "<get_token> 文字列: #{ret}"
+      return ret.to_s
+    end
     if ret = @@scanner.scan(/\A\s*(#{ _keywords.join('|') })/) # KWの時はシンボルを返す
       self.log "<get_token> キーワード: #{ret}"
       return ret
-      # return GarnetSyntax::KW[ret]
     end
     if ret = @@scanner.scan(/\A\s*([A-Za-z_$][A-Za-z_$0-9]*)/) # 変数の時
       self.log "<get_token> 変数: #{ret}"
@@ -66,11 +69,17 @@ class Garnet
         return puts Garnet.eval(ast[1])
       when :var
         return @@var[ast[1].intern] || 'undefined'
+      when :string
+        return ast[1]
       when :input
         @@var[ast[1].intern] = STDIN.gets().chomp()
         return @@var[ast[1].intern]
       when :add
-        return eval(ast[1]).to_f + eval(ast[2]).to_f
+        if ast[1].first == :string
+          return eval(ast[1]) << eval(ast[2]).to_s
+        else
+          return eval(ast[1]).to_f + eval(ast[2]).to_f
+        end
       when :sub
         return eval(ast[1]).to_f - eval(ast[2]).to_f
       when :mul
@@ -120,7 +129,7 @@ class GarnetSyntax < Garnet # tokenizer
     result
   end
 
-  def self.sentence # 文 = 代入文|いふ文|hoge文|{文列}
+  def self.sentence # 文 = 代入文|IF文|~~文|{文列}
     token = get_token()
     if token == :lblock # 文列のとき
       result = GarnetSyntax.sentences() # [:block, ~~~]が返る
@@ -267,6 +276,9 @@ class GarnetSyntax < Garnet # tokenizer
       end
       self.log "[因子] #{[:mul, minusflg, result]}"
       return [:mul, minusflg, result]
+    elsif token =~ /"(.*)"/
+      self.log "[文字列] #{$1}"
+      return [:string, $1.gsub(/\\"/, '"')]
     else
       self.log "[変数] #{token}"
       return [:var, token]

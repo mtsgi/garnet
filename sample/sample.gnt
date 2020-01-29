@@ -1,3 +1,5 @@
+print "xを入力してください";
 input x;
+print "yを入力してください";
 input y;
-print x*y;
+print "結果："+x*y;
