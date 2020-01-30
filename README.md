@@ -3,5 +3,6 @@
 ![Garnet](logo.png)
 
 ```sh
-ruby garnet.rb sample/sample.gnt
+chmod 755 ./garnet
+./garnet ./sample/sample.gnt
 ```

@@ -5,7 +5,7 @@ require 'strscan'
 class Garnet
   @@var = {
     GARNET_VER: 1,
-    DEBUG_MODE: 1
+    DEBUG_MODE: 0
   }
 
   @@scanner_log = []
