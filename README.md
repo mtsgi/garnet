@@ -4,5 +4,6 @@
 
 ```sh
 chmod 755 ./garnet
-./garnet ./sample/sample.gnt
+
+./garnet ./sample/bmi.gnt
 ```
