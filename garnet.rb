@@ -5,7 +5,7 @@ require 'strscan'
 class Garnet
   @@var = {
     GARNET_VER: 1,
-    DEBUG_MODE: 1
+    DEBUG_MODE: 0
   }
 
   @@scanner_log = []
@@ -75,10 +75,9 @@ class Garnet
     if ast.instance_of?(Array)
       case ast[0]
       when :block # 文列(block) = 文(文)*
-        self.log "ast" + ast[2].to_s
+        self.log "  ast => " + ast[2].to_s
         ast[1..-1].each do |s|
-          # self.log "文:" + s.to_s
-          Garnet.eval s
+          Garnet.eval(s)
         end
       when :assignment
         return @@var[ast[1].intern] = Garnet.eval(ast[2]).to_f
@@ -94,16 +93,20 @@ class Garnet
       when :add
         left = eval(ast[1])
         if left.is_a? String
-          return left.dup << eval(ast[2]).to_s
+          return left.dup << Garnet.eval(ast[2]).to_s
         else
-          return left.to_f + eval(ast[2]).to_f
+          return left.to_f + Garnet.eval(ast[2]).to_f
         end
       when :sub
-        return eval(ast[1]).to_f - eval(ast[2]).to_f
+        return Garnet.eval(ast[1]).to_f - Garnet.eval(ast[2]).to_f
       when :mul
-        return eval(ast[1]).to_f * eval(ast[2]).to_f
+        return Garnet.eval(ast[1]).to_f * Garnet.eval(ast[2]).to_f
       when :div
-        return eval(ast[1]).to_f / eval(ast[2]).to_f
+        return Garnet.eval(ast[1]).to_f / Garnet.eval(ast[2]).to_f
+      when :mod
+        return Garnet.eval(ast[1]).to_f % Garnet.eval(ast[2]).to_f
+      when :ifst
+        return Garnet.eval(ast[2]) unless [nil, 0, false, ''].include? Garnet.eval(ast[1])
       end
     else
       return ast
@@ -126,8 +129,8 @@ class GarnetSyntax < Garnet # tokenizer
     ';': :eos,
     '<=': :assign,
     '==': :eql,
-    'if': :if,
-    '?': :then,
+    '=>': :then,
+    '!?': :unless,
     '<<': :print,
     '>>': :input,
     '"': :quote,
@@ -136,11 +139,6 @@ class GarnetSyntax < Garnet # tokenizer
 
   def self.sentences # 文列(block) = 文(文)*
     result = [:block]
-    if s =  GarnetSyntax.sentence()
-      result << s
-    #else
-      #raise 'SentenseNotFoundException'
-    end
     while s = GarnetSyntax.sentence()
       result << s
     end
@@ -150,11 +148,11 @@ class GarnetSyntax < Garnet # tokenizer
 
   def self.sentence # 文 = 代入文|IF文|~~文|{文列}
     token = get_token()
-    if KW[token&.to_sym] ==  :lblock # 文列のとき
+    if KW[token&.to_sym] == :lblock # 文列のとき
       result = GarnetSyntax.sentences() # [:block, ~~~]が返る
-      unless KW[get_token()&.to_sym] == :rblock # }がない
-        raise 'RBlockNotFoundException'
-      end
+      # unless KW[get_token()&.to_sym] == :rblock # }がない
+      #   raise 'RBlockNotFoundException'
+      # end
       return result
     end
     unget_token()
@@ -249,7 +247,7 @@ class GarnetSyntax < Garnet # tokenizer
     end
   end
 
-  def self.ifst # if文 = 式 ? 文列
+  def self.ifst # if文 = 式 => 文列
     if token = GarnetSyntax.expression()
       self.log "判定式 => #{token}"
       var = token
@@ -293,13 +291,14 @@ class GarnetSyntax < Garnet # tokenizer
     result = GarnetSyntax.factor()
     while true
       token = get_token()
-      unless [:mul, :div, :eql].include? KW[token&.to_sym]
+      unless [:mul, :div, :eql, :mod].include? KW[token&.to_sym]
         unget_token()
         break
       end
       token_sym = :mul if KW[token&.to_sym] == :mul
       token_sym = :div if KW[token&.to_sym] == :div
       token_sym = :eql if KW[token&.to_sym] == :eql
+      token_sym = :mod if KW[token&.to_sym] == :mod
       result = [token_sym, result, factor]
     end
     self.log '[項]' + result.to_s
@@ -309,7 +308,7 @@ class GarnetSyntax < Garnet # tokenizer
   def self.factor # 因子 = リテラル | 変数 | (式) | "文字列"
     token = get_token()
     minusflg = 1
-    if KW[token&.to_sym] == :sub
+    if token == '-'
       minusflg = -1
       token = get_token()
     end
