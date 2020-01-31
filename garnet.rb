@@ -3,8 +3,8 @@
 require 'strscan'
 
 class Garnet
-  @@var = {
-    GARNET_VER: 1,
+  @@vars = {
+    GARNET_VER: 1.0,
     DEBUG_MODE: 0
   }
 
@@ -20,11 +20,11 @@ class Garnet
     ast = GarnetSyntax.sentences()
     Garnet.log "抽象構文木 => #{ast}"
     Garnet.eval(ast)
-    Garnet.log @@var
+    Garnet.log @@vars
   end
 
   def self.log(message)
-    puts message if @@var[:DEBUG_MODE] == 1
+    puts message if @@vars[:DEBUG_MODE] == 1
   end
 
   def self.get_token
@@ -41,7 +41,7 @@ class Garnet
     end
     if ret = @@scanner.scan(/\A\s*(#{ _keywords.join('|') })/) # KWの時はシンボルを返す
       @@scanner_log << @@scanner.dup
-      self.log "<get_token> キーワード: #{ret}"
+      self.log "<get_token> キーワード: #{ret.strip}"
       return ret.strip
     end
     if ret = @@scanner.scan(/\A\s*([A-Za-z_$][A-Za-z_$0-9]*)/) # 変数の時
@@ -80,16 +80,16 @@ class Garnet
           Garnet.eval(s)
         end
       when :assignment
-        return @@var[ast[1].intern] = Garnet.eval(ast[2]).to_f
+        return @@vars[ast[1].intern] = Garnet.eval(ast[2]).to_f
       when :print
         return puts Garnet.eval(ast[1])
       when :var
-        return @@var[ast[1].intern] || 'undefined'
+        return @@vars[ast[1].intern] || 'undefined'
       when :string
         return ast[1]
       when :input
-        @@var[ast[1].intern] = STDIN.gets().chomp()
-        return @@var[ast[1].intern]
+        @@vars[ast[1].intern] = STDIN.gets().chomp()
+        return @@vars[ast[1].intern]
       when :add
         left = eval(ast[1])
         if left.is_a? String
@@ -105,8 +105,19 @@ class Garnet
         return Garnet.eval(ast[1]).to_f / Garnet.eval(ast[2]).to_f
       when :mod
         return Garnet.eval(ast[1]).to_f % Garnet.eval(ast[2]).to_f
+      when :eql
+        left = Garnet.eval(ast[1])
+        right = Garnet.eval(ast[2])
+        self.log "左辺=>#{left} / 右辺=>#{right}"
+        if left.is_a? String
+          return left.to_s.eql?(right) || left.to_s.eql?(right.to_i.to_s) || left.to_s.eql?(right.to_f.to_s)
+        else
+          return left.to_f.eql?(right.to_f)
+        end
+      when :ineql
+        return left != right
       when :ifst
-        return Garnet.eval(ast[2]) unless [nil, 0, false, ''].include? Garnet.eval(ast[1])
+        return Garnet.eval(ast[2]) unless GarnetSyntax::FALSY.include? Garnet.eval(ast[1])
       end
     else
       return ast
@@ -128,14 +139,17 @@ class GarnetSyntax < Garnet # tokenizer
     '}': :rblock,
     ';': :eos,
     '<=': :assign,
-    '==': :eql,
-    '=>': :then,
+    ':)': :eql,
+    ':(': :ineql,
+    '??': :then,
     '!?': :unless,
     '<<': :print,
     '>>': :input,
     '"': :quote,
     '---': :exit
   }
+
+  FALSY = [nil, 0, false, '', Float::NAN, 'undefined']
 
   def self.sentences # 文列(block) = 文(文)*
     result = [:block]
@@ -148,7 +162,7 @@ class GarnetSyntax < Garnet # tokenizer
 
   def self.sentence # 文 = 代入文|IF文|~~文|{文列}
     token = get_token()
-    if KW[token&.to_sym] == :lblock # 文列のとき
+    if token == '{' # 文列のとき
       result = GarnetSyntax.sentences() # [:block, ~~~]が返る
       # unless KW[get_token()&.to_sym] == :rblock # }がない
       #   raise 'RBlockNotFoundException'
@@ -182,9 +196,9 @@ class GarnetSyntax < Garnet # tokenizer
 
   def self.print # print文 = << 式;
     token = get_token()
-    if KW[token&.to_sym] == :print
+    if KW[token.to_s&.to_sym] == :print
       result = GarnetSyntax.expression()
-      if KW[get_token()&.to_sym] == :eos
+      if KW[get_token().to_s&.to_sym] == :eos
         self.log "プリント => #{result}"
         return [:print, result]
       else
@@ -199,7 +213,7 @@ class GarnetSyntax < Garnet # tokenizer
 
   def self.input # input文 = >> 変数名;
     token = get_token()
-    if KW[token&.to_sym] == :input
+    if KW[token.to_s&.to_sym] == :input
       token = get_token()
       self.log "変数名トークン => #{token}"
       if token.is_a? String # 変数名として正しい
@@ -224,7 +238,7 @@ class GarnetSyntax < Garnet # tokenizer
       var = token
       token = get_token()
       self.log "代入KWトークン => #{token}"
-      if KW[token&.to_sym] == :assign
+      if KW[token.to_s&.to_sym] == :assign
         self.log "正しい代入KWです"
       else
         self.log "正しくない代入KWです"
@@ -247,7 +261,7 @@ class GarnetSyntax < Garnet # tokenizer
     end
   end
 
-  def self.ifst # if文 = 式 => 文列
+  def self.ifst # if文 = 式 ?? 文
     if token = GarnetSyntax.expression()
       self.log "判定式 => #{token}"
       var = token
@@ -259,7 +273,7 @@ class GarnetSyntax < Garnet # tokenizer
         unget_token()
         return nil
       end
-      result = [:ifst, token, GarnetSyntax.sentences()]
+      result = [:ifst, token, GarnetSyntax.sentence()]
       self.log "結果 => #{result}"
       return result
     else
@@ -274,9 +288,9 @@ class GarnetSyntax < Garnet # tokenizer
       self.log "リザルト:#{result}"
       token = get_token()
 
-      if KW[token&.to_sym] == :add
+      if KW[token.to_s&.to_sym] == :add
         result = [:add, result, GarnetSyntax.term()]
-      elsif KW[token&.to_sym] == :sub
+      elsif KW[token.to_s&.to_sym] == :sub
         result = [:sub, result, GarnetSyntax.term()]
       else
         unget_token()
@@ -287,18 +301,19 @@ class GarnetSyntax < Garnet # tokenizer
     return result
   end
 
-  def self.term # 項 = Fctr ((‘*’|’/’) Fctr)*
+  def self.term # 項 = Fctr ((‘*’|’/’|’:)’|’%’) Fctr)*
     result = GarnetSyntax.factor()
     while true
       token = get_token()
-      unless [:mul, :div, :eql, :mod].include? KW[token&.to_sym]
+      unless [:mul, :div, :eql, :ineql, :mod].include? KW[token.to_s&.to_sym]
         unget_token()
         break
       end
-      token_sym = :mul if KW[token&.to_sym] == :mul
-      token_sym = :div if KW[token&.to_sym] == :div
-      token_sym = :eql if KW[token&.to_sym] == :eql
-      token_sym = :mod if KW[token&.to_sym] == :mod
+      token_sym = :mul if KW[token.to_s&.to_sym] == :mul
+      token_sym = :div if KW[token.to_s&.to_sym] == :div
+      token_sym = :eql if KW[token.to_s&.to_sym] == :eql
+      token_sym = :inqel if KW[token.to_s&.to_sym] == :ineql
+      token_sym = :mod if KW[token.to_s&.to_sym] == :mod
       result = [token_sym, result, factor]
     end
     self.log '[項]' + result.to_s
@@ -315,7 +330,7 @@ class GarnetSyntax < Garnet # tokenizer
     if token.is_a? Numeric # 数値リテラル
       self.log "[因子] #{token * minusflg}"
       return token * minusflg
-    elsif KW[token&.to_sym] == :lpar # (式)のとき
+    elsif KW[token.to_s&.to_sym] == :lpar # (式)のとき
       result = GarnetSyntax.expression()
       unless KW[get_token()&.to_sym] == :rpar
         raise Exception, "Unexpected token : #{:rpar}"
