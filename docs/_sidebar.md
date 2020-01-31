@@ -1,3 +1,3 @@
 - [はじめに](/)
-- [Garnetの文法](/grammer)
+- [Garnet チュートリアル](/tutorial)
 - [算術式](/expression)
