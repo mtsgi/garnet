@@ -1,3 +1,4 @@
 - [はじめに](/)
 - [Garnet チュートリアル](/tutorial)
 - [算術式](/expression)
+- [サンプルプログラム](/sample)
