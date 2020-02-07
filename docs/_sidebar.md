@@ -2,3 +2,4 @@
 - [Garnet チュートリアル](/tutorial)
 - [算術式](/expression)
 - [サンプルプログラム](/sample)
+- [読み物](/reading)

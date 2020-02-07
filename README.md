@@ -2,8 +2,6 @@
 
 ![Garnet](logo.png)
 
-```sh
-chmod 755 ./garnet
+GarnetはRubyの処理系を持つプログラミング言語です。実行ファイルには、拡張子.garを使用します。
 
-./garnet ./sample/bmi.gnt
-```
+#### Garnetドキュメントは[こちら](https://mtsgi.github.io/garnet)
