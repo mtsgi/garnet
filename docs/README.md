@@ -19,3 +19,11 @@ chmod 755 ./garnet
 ```sh
 ./garnet ./sample/helloworld.gar
 ```
+
+### Garnetインタープリター
+
+ファイル名を指定しないで実行すると、Garnetのインタープリターが起動します。
+
+```sh
+./garnet
+```

@@ -266,7 +266,7 @@ class GarnetSyntax < Garnet # tokenizer
     end
   end
 
-  def self.exit # exit文 => ---
+  def self.exit # exit文 => :/
     if KW[get_token().to_s&.to_sym] == :exit
       return [:exit]
     else
