@@ -2,6 +2,7 @@
 
 require 'date'
 require 'strscan'
+require 'readline'
 
 class Garnet
   @@vars = {
@@ -16,16 +17,30 @@ class Garnet
   @@scanner_log = []
 
   def initialize
-    f = open(ARGV[0])
-    code = f.map {|l| l.chomp }.join('')
-    Garnet.log code
-    @@scanner = StringScanner.new(code)
-    @@scanner_log << @@scanner.dup
-    Garnet.log @@scanner
-    ast = GarnetSyntax.sentences()
-    Garnet.log "抽象構文木 => #{ast}"
-    Garnet.eval(ast)
-    Garnet.log @@vars
+    if ARGV[0]
+      f = open(ARGV[0])
+      code = f.map {|l| l.chomp }.join('')
+      Garnet.log code
+      @@scanner = StringScanner.new(code)
+      @@scanner_log << @@scanner.dup
+      Garnet.log @@scanner
+      ast = GarnetSyntax.sentences()
+      Garnet.log "抽象構文木 => #{ast}"
+      Garnet.eval(ast)
+      Garnet.log @@vars
+    else
+      loop do
+        code = Readline.readline("gar > ", true)
+        @@scanner = StringScanner.new(code)
+        begin
+          ast = GarnetSyntax.sentences()
+          Garnet.log "抽象構文木 => #{ast}"
+          Garnet.eval(ast)
+        rescue Exception
+          puts Exception
+        end
+      end
+    end
   end
 
   def self.log(message)
@@ -88,7 +103,7 @@ class Garnet
       when :string
         return ast[1]
       when :input
-        @@vars[ast[1].intern] = STDIN.gets().chomp()
+        @@vars[ast[1].intern] = Readline.readline('', true).chomp()
         return @@vars[ast[1].intern]
       when :add
         left = eval(ast[1])
@@ -118,6 +133,9 @@ class Garnet
         return left != right
       when :ifst
         return Garnet.eval(ast[2]) unless GarnetSyntax::FALSY.include? Garnet.eval(ast[1])
+      when :exit
+        puts 'Exited from garnet.'
+        Kernel.exit! 0
       end
     else
       return ast
@@ -147,7 +165,7 @@ class GarnetSyntax < Garnet # tokenizer
     '<<': :print,
     '>>': :input,
     '"': :quote,
-    '---': :exit
+    ':/': :exit
   }
 
   FALSY = [nil, 0, false, '', Float::NAN, 'undefined']
@@ -176,6 +194,10 @@ class GarnetSyntax < Garnet # tokenizer
 
     if result = GarnetSyntax.print() # nilが返ると次に行く
       self.log "[print文]#{result}"
+      return result
+    end
+    if result = GarnetSyntax.exit()
+      self.log "[exit文]"
       return result
     end
     if result = GarnetSyntax.input()
@@ -232,6 +254,15 @@ class GarnetSyntax < Garnet # tokenizer
           return nil
         end
       end
+    else
+      unget_token()
+      return nil
+    end
+  end
+
+  def self.exit # exit文 => :/
+    if KW[get_token().to_s&.to_sym] == :exit
+      return [:exit]
     else
       unget_token()
       return nil
