@@ -306,7 +306,6 @@ class GarnetSyntax < Garnet # tokenizer
     prev_log = @@scanner_log.dup
     if token = GarnetSyntax.expression()
       exp = token.dup
-      puts "倒置代入式：#{exp}"
       token = get_token()
       case KW[token.to_s&.to_sym]
       when :assign_inv
